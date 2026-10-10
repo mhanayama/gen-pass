@@ -1,0 +1,27 @@
+{
+  "sudachi_version": "20260723",
+  "sudachi_repository_commit": "3e49051e71011cac7d74df779e80ef1dab818e56",
+  "eff_version": "Short Wordlist #1, 2016-09-08",
+  "sources": [
+    {
+      "file": "small_lex.zip",
+      "url": "https://sudachi.s3.ap-northeast-1.amazonaws.com/sudachidict-raw/20260723/small_lex.zip",
+      "sha256": "b578ac9545899783d5d7e30d5d78d5d9dcf40b36965d4af0663ec2eb041c1093"
+    },
+    {
+      "file": "core_lex.zip",
+      "url": "https://sudachi.s3.ap-northeast-1.amazonaws.com/sudachidict-raw/20260723/core_lex.zip",
+      "sha256": "a2b39e1572adab08a649b1390b134517adc55f1d733c59358b113298788bf31c"
+    },
+    {
+      "file": "notcore_lex.zip",
+      "url": "https://sudachi.s3.ap-northeast-1.amazonaws.com/sudachidict-raw/20260723/notcore_lex.zip",
+      "sha256": "a15edc5193b42acfebdc220825d8c7edf0059bf950169d09bcdf6c426a81ecd1"
+    },
+    {
+      "file": "eff_short_wordlist_1.txt",
+      "url": "https://www.eff.org/files/2016/09/08/eff_short_wordlist_1.txt",
+      "sha256": "8f5ca830b8bffb6fe39c9736c024a00a6a6411adb3f83a9be8bfeeb6e067ae69"
+    }
+  ]
+}

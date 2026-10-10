@@ -1,0 +1,29 @@
+{
+  "common": {
+    "eligible": 126483,
+    "selected": 16384
+  },
+  "place": {
+    "eligible": 94293,
+    "selected": 6144
+  },
+  "person": {
+    "eligible": 350348,
+    "selected": 6144
+  },
+  "proper": {
+    "eligible": 174910,
+    "selected": 4096
+  },
+  "japanese_count": 31184,
+  "english_count": 1287,
+  "removed_english_overlap": 8,
+  "examples": [
+    "komorebi",
+    "marubiru",
+    "okonomiyaki",
+    "rettsunoto",
+    "tokyo",
+    "toshiba"
+  ]
+}

@@ -1,0 +1,32 @@
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+
+# Build sources, downloaded dictionaries, and distribution artifacts
+.build/
+build/
+dist/
+*.egg-info/
+
+# Coverage output
+.coverage
+.coverage.*
+htmlcov/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+.aws/
+.codex/
+.idea/
+.vscode/
+.DS_Store

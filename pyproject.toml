@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gen-pass-romaji"
+version = "0.1.0"
+description = "Offline Japanese romaji passphrase generator"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT AND Apache-2.0 AND BSD-3-Clause AND CC-BY-4.0"
+license-files = ["LICENSE", "THIRD_PARTY_LICENSES.md", "licenses/*.txt"]
+dependencies = []
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.scripts]
+gen-pass = "gen_pass:main"
+
+[tool.setuptools.packages.find]
+include = ["gen_pass", "gen_pass.dictionary"]
+
+[tool.setuptools.package-data]
+gen_pass = ["dictionary/*.txt", "dictionary/*.json"]
