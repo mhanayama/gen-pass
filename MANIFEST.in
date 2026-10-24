@@ -1,3 +1,5 @@
 include gen-pass.py
+include install.sh install.ps1
 recursive-include scripts *.py
+recursive-include scripts *.txt *.ps1
 recursive-include tests *.py

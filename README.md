@@ -1,17 +1,94 @@
 # gen-pass — 日本語ローマ字パスワードジェネレーター
 
-macOS・Linux・Windows / Python **3.11以降**向けのCLIです。日本語由来のローマ字を中心とする
+macOS・Linux・Windows向けのCLIです。日本語由来のローマ字を中心とする
 パスフレーズを表示し、同じパスワードだけをクリップボードへコピーします。
 `--hr`を指定すると、手入力しやすい小文字の英単語3語＋数字4桁を生成します。
 辞書を含めてインストールでき、任意のディレクトリから`gen-pass`で実行できます。
-通常実行は完全オフラインで、追加のPythonパッケージへの依存はありません。
+通常実行は完全オフラインです。Releaseの実行ファイルはPythonの事前インストール不要で、
+ソースから使う場合はPython **3.11以降**が必要です。
 
 ## インストール
+
+### 1コマンドでインストール（Python不要）
+
+公開済みの[GitHub Releases](https://github.com/mhanayama/gen-pass/releases/latest)から、
+OS・CPUに合う実行ファイルを取得し、SHA-256を検証してインストールします。
+最初のReleaseを公開するまでは、このURL・コマンドは利用できません。
+
+macOS / Linux:
+
+```bash
+curl -fsSL https://github.com/mhanayama/gen-pass/releases/latest/download/install.sh | sh
+```
+
+Apple Silicon・Intel Macと、Linuxのarm64・x86_64に対応しています。
+管理者権限は不要で、実行ファイルは`~/.local/bin/gen-pass`、
+ライセンスは`~/.local/share/gen-pass/`へ配置します。
+既に`gen-pass`がPATH上にあれば、その導入先を自動検出し、同じコマンドで最新版に置き換えます。
+以前の版をアンインストールする必要はありません。初回に配置先を変更した場合も、PATHに入っていれば引き継ぎます。
+`~/.local/bin`がPATHに含まれていない場合は、`~/.local/bin/gen-pass`で直接実行するか、
+シェルの設定ファイル（zshなら`~/.zshrc`、bashなら`~/.bashrc`など）へ次を追加してください。
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Windows x64（PowerShell）:
+
+```powershell
+irm https://github.com/mhanayama/gen-pass/releases/latest/download/install.ps1 | iex
+```
+
+実行ファイルとライセンスを`%LOCALAPPDATA%\Programs\gen-pass\`へ配置し、
+ユーザーのPATHと実行中のPowerShellのPATHへ追加します。他のターミナルは開き直してください。
+既に`gen-pass.exe`がPATH上にある場合はその場所を自動検出し、旧版を最新版に置き換えます。
+管理者権限とPythonは不要です。Windows arm64用のビルドは提供していません。
+
+導入後の確認:
+
+```text
+gen-pass --help
+gen-pass --hr
+```
+
+インストーラーはダウンロードした実行ファイルを`--help`で確認し、クリップボードは変更しません。
+Linuxのクリップボード利用には`wl-clipboard`、`xclip`または`xsel`が別途必要です。
+クリップボードがない環境では`gen-pass --no-clipboard`を使ってください。
+
+バージョンや配置先を指定する場合は、ダウンロードしたスクリプトに環境変数を渡せます。
+`GEN_PASS_VERSION=v0.1.0`で特定のRelease、`GEN_PASS_INSTALL_DIR`で絶対パスの配置先を指定します。
+macOS / Linuxのライセンス配置先は`GEN_PASS_DATA_DIR`で変更できます。
+`GEN_PASS_INSTALL_DIR`の明示指定は、既存導入先の自動検出より優先します。
+更新先への書き込み権限がない場合はエラーになります。
+自動更新はインストーラー実行時に行い、通常のパスワード生成時はオフラインのままです。
+pipxで導入したコマンドも実行ファイルへ置き換えられますが、旧venvは残ります。
+移行後の更新・削除はこのインストーラーと下記の手順を使ってください。
+
+### ダウンロードして使う（Python不要）
+
+Releaseの対応ファイルをダウンロードして展開すると、`gen-pass/`の中に実行ファイルと
+ライセンスが入っています。macOS / Linuxでは`./gen-pass`、Windowsでは`.\gen-pass.exe`で実行できます。
+
+| 環境 | 配布ファイル |
+|---|---|
+| macOS / Apple Silicon | `gen-pass-macos-arm64.tar.gz` |
+| macOS / Intel | `gen-pass-macos-x86_64.tar.gz` |
+| Linux / x86_64 | `gen-pass-linux-x86_64.tar.gz` |
+| Linux / arm64 | `gen-pass-linux-arm64.tar.gz` |
+| Windows / x64 | `gen-pass-windows-x86_64.zip` |
+
+Linux版はglibc 2.35以降（Ubuntu 22.04以降など）を対象とし、Alpine Linuxのmusl環境には非対応です。
+macOS版はmacOS 15以降をビルド・動作確認の対象にしています。
+実行ファイルは配布者証明書でのコード署名・公証を行っていないため、ダウンロード方法やOS設定によって
+macOSのGatekeeperやWindowsのSmartScreenに確認・ブロックされる場合があります。
+各アーカイブの`.sha256`も同じReleaseに添付します。
+
+### ソースからインストール（pipx）
 
 Python 3.11以降と[pipx](https://pipx.pypa.io/)を用意します。
 pipxはアプリ専用の仮想環境を作り、シェルからコマンドを呼び出せるようにするツールです。
 
-### macOS
+#### macOS
 
 Homebrewを利用している場合:
 
@@ -20,7 +97,7 @@ brew install pipx
 pipx ensurepath
 ```
 
-### Linux
+#### Linux
 
 Ubuntu / Debianの例:
 
@@ -35,7 +112,7 @@ SSH・サーバーなどデスクトップのクリップボードがない環�
 ディストリビューションのPythonが3.11未満なら、3.11以降を別途用意し、
 `pipx install --python /path/to/python3.11 .`のように指定してください。
 
-### Windows
+#### Windows
 
 Python 3.11以降をインストールした後、PowerShellまたはコマンドプロンプトで:
 
@@ -44,7 +121,7 @@ py -m pip install --user pipx
 py -m pipx ensurepath
 ```
 
-### gen-passのインストール（3 OS共通）
+#### gen-passのインストール（3 OS共通）
 
 `ensurepath`後にターミナルを開き直し、このリポジトリのディレクトリで実行します。
 Windowsで`pipx`が見つからない場合は`py -m pipx`で置き換えられます。
@@ -73,6 +150,46 @@ pipxを使わない場合は、専用venvに`python -m pip install .`でイン�
 配布用wheelは`python -m pip install build`と`python -m build`で作成できます。
 作成されたwheelも`pipx install /path/to/gen_pass_romaji-0.1.0-py3-none-any.whl`でインストールできます。
 wheelに実行時Python依存パッケージはなく、Python自体は別途必要です。
+
+### アンインストール
+
+1コマンドのインストーラーで導入した場合は、macOS / Linuxでは
+`~/.local/bin/gen-pass`と`~/.local/share/gen-pass/`を削除します。
+Windowsでは`%LOCALAPPDATA%\Programs\gen-pass\`を削除し、ユーザーのPATHから同じ項目を取り除きます。
+既存導入先を引き継いだ場合や配置先を変更した場合は、その場所のファイルを削除してください。
+pipxで導入した場合は`pipx uninstall gen-pass-romaji`を使います。
+
+## Releaseの作成（メンテナー向け）
+
+`pyproject.toml`のバージョンに一致する`v`付きタグをpushすると、
+GitHub Actionsが5環境の実行ファイル、SHA-256、wheel、ソースアーカイブ、
+`install.sh`、`install.ps1`をビルドし、下書きReleaseへアップロードします。
+すべての環境でテストと実行ファイルの動作確認が成功した後にアップロードします。
+
+変更をコミット・pushした後、バージョン0.1.0の場合:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Actionsの`Build release`が成功したら、Releasesで下書きの添付ファイルを確認し、
+`Publish release`で公開してください。通常の安定版Releaseを最新にすると、1コマンド導入の対象になります。
+同じタグのワークフローを再実行すると、下書きの添付ファイルを更新します。
+公開済みReleaseのファイルは上書きせず、エラーで停止します。
+Actionsからの手動実行（`workflow_dispatch`）はビルドとArtifactsへの保存だけを行います。
+
+手元のOS・CPU向けの配布物を作る場合（Python 3.11以降）:
+
+```bash
+python3 -m venv .build/release-tools
+.build/release-tools/bin/python -m pip install -r scripts/release-requirements.txt
+.build/release-tools/bin/python scripts/build_release.py
+```
+
+WindowsではvenvのPythonを`.build\release-tools\Scripts\python.exe`に置き換えます。
+生成物は`dist/release/`に保存されます。別のOS・CPU用は、それぞれの環境でビルドが必要です。
+Pythonランタイムと辞書を実行ファイルに含め、各配布アーカイブにもライセンスを同梱します。
 
 ## 使い方
 
@@ -275,6 +392,8 @@ python3 -m unittest discover -s tests -v
 クリップボードへの入力・失敗・タイムアウトを確認します。
 テスト中のコピーはモック化し、クリップボードを変更しません。
 統計テストでCSPRNGの安全性を証明したと主張するものではありません。
+配布アーカイブのライセンス・チェックサム、macOS / Linux用インストーラーの更新と失敗時の保護も検証します。
+Windows用インストーラーは、Releaseビルド時に実際の配布ファイルを使って導入・更新・チェックサム不一致を確認します。
 
 ビルド済みwheelを一時venvへインストールし、リポジトリ外からの実行・
 辞書とライセンスの同梱・実行時依存がないことも検証できます。

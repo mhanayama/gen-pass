@@ -1,0 +1,107 @@
+name: Build release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  standalone:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: macos-arm64
+          - runner: macos-15-intel
+            target: macos-x86_64
+          - runner: ubuntu-22.04
+            target: linux-x86_64
+          - runner: ubuntu-22.04-arm
+            target: linux-arm64
+          - runner: windows-2022
+            target: windows-x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+      - run: python -m pip install -r scripts/release-requirements.txt
+      - name: Build and verify standalone release
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then
+            python scripts/build_release.py --tag "$REF_NAME"
+          else
+            python scripts/build_release.py
+          fi
+      - name: Verify Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test_windows_install.ps1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: standalone-${{ matrix.target }}
+          path: dist/release/*
+          if-no-files-found: error
+
+  python-package:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build
+      - run: python -m build
+      - run: python scripts/verify_install.py dist/gen_pass_romaji-*.whl
+        shell: bash
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-package
+          path: dist/*
+          if-no-files-found: error
+
+  draft-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [standalone, python-package]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist/release
+          merge-multiple: true
+      - name: Upload all assets to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cp install.sh install.ps1 dist/release/
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes --title "$RELEASE_TAG"
+          fi
+          gh release upload "$RELEASE_TAG" dist/release/* --clobber
