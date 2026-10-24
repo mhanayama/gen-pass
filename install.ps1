@@ -43,17 +43,37 @@
         if ($LASTEXITCODE -ne 0) { throw 'The downloaded executable could not run.' }
         New-Item -ItemType Directory -Force -Path $installDir | Out-Null
         $destination = Join-Path $installDir 'gen-pass.exe'
+        $previous = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+        if ($previous -and $previous.PSIsContainer) {
+            throw "Expected an executable, found a directory: $destination"
+        }
         $staged = Join-Path $installDir ('.gen-pass-' + [guid]::NewGuid().ToString() + '.exe')
         Copy-Item -LiteralPath $binary -Destination $staged
         Get-ChildItem -LiteralPath $bundle | Where-Object { $_.Name -ne 'gen-pass.exe' } |
             Copy-Item -Destination $installDir -Recurse -Force
-        if (Test-Path -LiteralPath $destination) {
+        if ($previous) {
             Write-Host "Updating existing installation: $destination"
-            # Replace only after staging succeeds; leave the old executable on failure.
-            [IO.File]::Replace($staged, $destination, [NullString]::Value)
         }
-        else {
-            [IO.File]::Move($staged, $destination)
+        # File.Replace rejects symbolic links on Windows. Rename the staged file
+        # over the directory entry instead, without opening or writing its target.
+        # Stage in the destination directory so no cross-volume copy is necessary.
+        if (-not ('GenPass.Installer.FileOperations' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+namespace GenPass.Installer {
+    public static class FileOperations {
+        [DllImport("kernel32.dll", EntryPoint = "MoveFileExW", ExactSpelling = true,
+            CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool MoveFileEx(string source, string destination, uint flags);
+    }
+}
+'@
+        }
+        if (-not [GenPass.Installer.FileOperations]::MoveFileEx($staged, $destination, 1)) {
+            $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            $reason = [ComponentModel.Win32Exception]::new($code).Message
+            throw "Could not update gen-pass.exe; the existing executable was kept. $reason"
         }
 
         $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')

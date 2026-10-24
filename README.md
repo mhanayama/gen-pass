@@ -56,7 +56,7 @@ Linuxのクリップボード利用には`wl-clipboard`、`xclip`または`xsel`
 クリップボードがない環境では`gen-pass --no-clipboard`を使ってください。
 
 バージョンや配置先を指定する場合は、ダウンロードしたスクリプトに環境変数を渡せます。
-`GEN_PASS_VERSION=v0.1.1`で特定のRelease、`GEN_PASS_INSTALL_DIR`で絶対パスの配置先を指定します。
+`GEN_PASS_VERSION=v0.1.2`で特定のRelease、`GEN_PASS_INSTALL_DIR`で絶対パスの配置先を指定します。
 macOS / Linuxのライセンス配置先は`GEN_PASS_DATA_DIR`で変更できます。
 `GEN_PASS_INSTALL_DIR`の明示指定は、既存導入先の自動検出より優先します。
 更新先への書き込み権限がない場合はエラーになります。
@@ -148,7 +148,7 @@ pipx uninstall gen-pass-romaji
 pipxを使わない場合は、専用venvに`python -m pip install .`でインストールし、
 そのvenvを有効にしたシェルから`gen-pass`を実行できます。
 配布用wheelは`python -m pip install build`と`python -m build`で作成できます。
-作成されたwheelも`pipx install /path/to/gen_pass_romaji-0.1.1-py3-none-any.whl`でインストールできます。
+作成されたwheelも`pipx install /path/to/gen_pass_romaji-0.1.2-py3-none-any.whl`でインストールできます。
 wheelに実行時Python依存パッケージはなく、Python自体は別途必要です。
 
 ### アンインストール
@@ -166,11 +166,11 @@ GitHub Actionsが5環境の実行ファイル、SHA-256、wheel、ソースア�
 `install.sh`、`install.ps1`をビルドし、下書きReleaseへアップロードします。
 すべての環境でテストと実行ファイルの動作確認が成功した後にアップロードします。
 
-変更をコミット・pushした後、バージョン0.1.1の場合:
+変更をコミット・pushした後、バージョン0.1.2の場合:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 Actionsの`Build release`が成功したら、Releasesで下書きの添付ファイルを確認し、
@@ -394,13 +394,15 @@ python3 -m unittest discover -s tests -v
 統計テストでCSPRNGの安全性を証明したと主張するものではありません。
 配布アーカイブのライセンス・チェックサム、macOS / Linux用インストーラーの更新と失敗時の保護も検証します。
 CP932でのヘルプ・生成・入力エラー出力も検証し、日本語Windowsでの文字コードエラーを防ぎます。
-Windows用インストーラーは、Releaseビルド時に実際の配布ファイルを使って導入・更新・チェックサム不一致を確認します。
+Windows用インストーラーは、Windows PowerShell 5.1とPowerShell 7の両方で実際の配布ファイルを使い、
+新規導入・通常ファイルとシンボリックリンク／ハードリンクからの更新・リンク切れ・
+リンク先を変更しないこと・ファイルがロックされた場合の旧版保持・チェックサム不一致を確認します。
 
 ビルド済みwheelを一時venvへインストールし、リポジトリ外からの実行・
 辞書とライセンスの同梱・実行時依存がないことも検証できます。
 
 ```bash
-python3 scripts/verify_install.py dist/gen_pass_romaji-0.1.1-py3-none-any.whl
+python3 scripts/verify_install.py dist/gen_pass_romaji-0.1.2-py3-none-any.whl
 ```
 
 各OSのクリップボード選択はモックで確認しています。

@@ -49,9 +49,13 @@ jobs:
           else
             python scripts/build_release.py
           fi
-      - name: Verify Windows installer
+      - name: Verify Windows installer (PowerShell 7)
         if: runner.os == 'Windows'
         shell: pwsh
+        run: ./scripts/test_windows_install.ps1
+      - name: Verify Windows installer (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
         run: ./scripts/test_windows_install.ps1
       - uses: actions/upload-artifact@v7
         with:
