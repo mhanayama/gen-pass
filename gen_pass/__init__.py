@@ -236,7 +236,7 @@ def valid_length(value):
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Generate an offline password and copy it to the clipboard.', allow_abbrev=False)
     parser.add_argument('-n', '--max-length', type=valid_length, metavar='N',
-                        help='maximum length; normally 3–16: N random characters, 17+: passphrase; --hr: keep 3 words and 4 digits within N')
+                        help='maximum length; normally 3-16: N random characters, 17+: passphrase; --hr: keep 3 words and 4 digits within N')
     parser.add_argument('--ed', dest='exclude_dash', action='store_true', help='exclude -')
     parser.add_argument('--eu', dest='exclude_under', action='store_true', help='exclude _')
     parser.add_argument('--hr', action='store_true', help='human readable: 3 lowercase English words and 4 digits, separated by -')

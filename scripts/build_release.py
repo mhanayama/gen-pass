@@ -32,6 +32,7 @@ def verify_command(command):
         for args in (['--help'], ['--no-clipboard'], ['--hr', '--no-clipboard'],
                      ['-n', '32', '--ed', '--eu', '--no-clipboard']):
             result = subprocess.run([str(command), *args], cwd=directory, text=True,
+                                    encoding='ascii', errors='strict',
                                     capture_output=True, timeout=60)
             if result.returncode:
                 raise RuntimeError(f'{command.name} failed ({result.returncode}): {result.stderr}')

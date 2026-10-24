@@ -2,6 +2,7 @@ import contextlib
 import io
 import itertools
 import math
+import os
 from pathlib import Path
 import re
 import socket
@@ -290,6 +291,26 @@ class ClipboardAndCLITests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         for option in ('--max-length', '--ed', '--eu', '--hr'):
             self.assertIn(option, result.stdout)
+
+    def test_cli_with_cp932_output(self):
+        # Redirected output on Japanese Windows uses CP932; in particular U+2013
+        # cannot be encoded. Exercise the real streams, not a Unicode StringIO.
+        environment = dict(os.environ, PYTHONIOENCODING='cp932:strict', PYTHONUTF8='0')
+        for args, status in ((['--help'], 0), (['-n', '2'], 2),
+                             (['-n', '8', '--no-clipboard'], 0),
+                             (['--hr', '--no-clipboard'], 0)):
+            with self.subTest(args=args):
+                result = subprocess.run([sys.executable, str(ROOT / 'gen-pass.py'), *args],
+                                        env=environment, capture_output=True, text=True,
+                                        encoding='cp932', errors='strict')
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertTrue(result.stdout.isascii())
+                self.assertTrue(result.stderr.isascii())
+                if args == ['--help']:
+                    self.assertIn('3-16', result.stdout)
+                elif status == 0:
+                    self.assertEqual(result.stderr, '')
+                    self.assertEqual(len(result.stdout.splitlines()), 2)
 
     def test_removed_flags_and_abbreviations_are_rejected(self):
         for option in ('--exclude-dash', '--exclude-under', '--h', '--e'):
