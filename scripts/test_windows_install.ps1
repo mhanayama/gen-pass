@@ -7,18 +7,14 @@ $originalDir = $env:GEN_PASS_INSTALL_DIR
 $originalVersion = $env:GEN_PASS_VERSION
 $originalPath = $env:Path
 $originalUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$script:badChecksum = $false
+$checksumFixture = Join-Path $fixture 'gen-pass-windows-x86_64.zip.sha256'
+$originalChecksum = Get-Content -LiteralPath $checksumFixture -Raw
 function Invoke-WebRequest {
     param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
     if (-not $Uri.StartsWith('https://github.com/mhanayama/gen-pass/releases/download/vtest/')) {
         throw "Unexpected URL: $Uri"
     }
-    if ($script:badChecksum -and $Uri.EndsWith('.sha256')) {
-        Set-Content -Path $OutFile -Value ('0' * 64)
-    }
-    else {
-        Copy-Item (Join-Path $fixture ($Uri.Split('/')[-1])) $OutFile
-    }
+    Copy-Item (Join-Path $fixture ($Uri.Split('/')[-1])) $OutFile
 }
 try {
     $env:GEN_PASS_INSTALL_DIR = Join-Path $temporary 'install with spaces'
@@ -39,7 +35,7 @@ try {
     & $binary --hr --no-clipboard | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Installed executable failed' }
     $before = (Get-FileHash $binary).Hash
-    $script:badChecksum = $true
+    Set-Content -LiteralPath $checksumFixture -Value ('0' * 64)
     $failed = $false
     try { & (Join-Path $root 'install.ps1') }
     catch {
@@ -54,6 +50,7 @@ try {
     Write-Host 'PASS Windows install, update, licenses, and checksum failure'
 }
 finally {
+    Set-Content -LiteralPath $checksumFixture -Value $originalChecksum -NoNewline
     [Environment]::SetEnvironmentVariable('Path', $originalUserPath, 'User')
     $env:Path = $originalPath
     $env:GEN_PASS_INSTALL_DIR = $originalDir
