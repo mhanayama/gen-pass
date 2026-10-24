@@ -31,7 +31,9 @@ class ReleaseTests(unittest.TestCase):
                     else:
                         with tarfile.open(archive) as handle:
                             names = set(handle.getnames())
-                            self.assertTrue(handle.getmember(f'gen-pass/{filename}').mode & 0o111)
+                            # Windows does not represent POSIX executable permission bits.
+                            if sys.platform != 'win32':
+                                self.assertTrue(handle.getmember(f'gen-pass/{filename}').mode & 0o111)
                     for name in (filename, 'LICENSE', 'THIRD_PARTY_LICENSES.md', 'README.md',
                                  'licenses/SudachiDict-LEGAL.txt', 'licenses/Python-LICENSE.txt'):
                         self.assertIn(f'gen-pass/{name}', names)
