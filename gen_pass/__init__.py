@@ -142,8 +142,40 @@ def bounded_phrase(max_length, japanese, english, separators):
     return random_password(max_length, separators)
 
 
-def generate(max_length=None, exclude_dash=False, exclude_under=False):
+def human_readable_password(max_length, separator):
+    english = tuple(word for word in load_words(DICTIONARY / 'english.txt')
+                    if len(word) <= 8)
+    if not english:
+        raise ValueError('English dictionary has no words of at most 8 letters')
+    combinations = len(english) ** 3
+    if max_length is None:
+        words = [secrets.choice(english) for _ in range(3)]
+    else:
+        slots = (length_groups(english),) * 3
+        count = completion_counter(slots)
+        budget = max_length - 4 - 3 * len(separator)
+        lengths = range(3 * min(slots[0]), min(budget, 3 * max(slots[0])) + 1)
+        combinations = sum(count(0, length) for length in lengths)
+        if not combinations:
+            raise ValueError('Maximum length is too short for --hr (3 English words and 4 digits)')
+        # Weight each total length by its number of triples so all fitting
+        # ordered word triples, including repeated words, are equally likely.
+        ticket = secrets.randbelow(combinations)
+        for length in lengths:
+            weight = count(0, length)
+            if ticket < weight:
+                words = choose_words(slots, length, count)
+                break
+            ticket -= weight
+    number = ''.join(secrets.choice(string.digits) for _ in range(4))
+    entropy = math.log2(combinations) + 4 * math.log2(10) if separator else None
+    return Generated(separator.join([*words, number]), entropy, 'human-readable')
+
+
+def generate(max_length=None, exclude_dash=False, exclude_under=False, human_readable=False):
     separators = ('' if exclude_dash else '-') + ('' if exclude_under else '_')
+    if human_readable:
+        return human_readable_password(max_length, separators[:1])
     if max_length is not None and max_length <= 16:
         return random_password(max_length, separators)
     japanese = load_words(DICTIONARY / 'japanese_romaji.txt', minimum=10000)
@@ -197,20 +229,21 @@ def valid_length(value):
     except ValueError as exc:
         raise argparse.ArgumentTypeError('N must be an integer of at least 3') from exc
     if length < 3:
-        raise argparse.ArgumentTypeError('N must be at least 3 (uppercase, lowercase, digit)')
+        raise argparse.ArgumentTypeError('N must be at least 3')
     return length
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Generate an offline Japanese romaji password and copy it to the clipboard.')
+    parser = argparse.ArgumentParser(description='Generate an offline password and copy it to the clipboard.', allow_abbrev=False)
     parser.add_argument('-n', '--max-length', type=valid_length, metavar='N',
-                        help='maximum length; 3–16: exactly N random characters; 17+: passphrase within N')
-    parser.add_argument('--exclude-dash', action='store_true', help='exclude -')
-    parser.add_argument('--exclude-under', action='store_true', help='exclude _')
+                        help='maximum length; normally 3–16: N random characters, 17+: passphrase; --hr: keep 3 words and 4 digits within N')
+    parser.add_argument('--ed', dest='exclude_dash', action='store_true', help='exclude -')
+    parser.add_argument('--eu', dest='exclude_under', action='store_true', help='exclude _')
+    parser.add_argument('--hr', action='store_true', help='human readable: 3 lowercase English words and 4 digits, separated by -')
     parser.add_argument('--no-clipboard', action='store_true', help='print only (for SSH, servers, and terminals without a clipboard)')
     args = parser.parse_args(argv)
     try:
-        result = generate(args.max_length, args.exclude_dash, args.exclude_under)
+        result = generate(args.max_length, args.exclude_dash, args.exclude_under, args.hr)
     except (OSError, UnicodeError, ValueError) as exc:
         print(f'Error: {exc}', file=sys.stderr)
         return 1

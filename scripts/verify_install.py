@@ -36,21 +36,25 @@ print(json.dumps({'japanese': len(gen_pass.load_words(gen_pass.DICTIONARY / 'jap
         info = json.loads(inspection.stdout)
         assert environment.resolve() in Path(info['installed']).parents, info
         print(f'PASS bundled dictionaries ({info["japanese"]} Japanese / {info["english"]} English), licenses, entry point, zero runtime dependencies')
-        for args in ([], ['-n', '8'], ['-n', '16'], ['-n', '17'], ['-n', '32'], ['-n', '32', '--exclude-dash', '--exclude-under']):
+        for args in ([], ['-n', '8'], ['-n', '16'], ['-n', '17'], ['-n', '32'], ['-n', '32', '--ed', '--eu'], ['--hr'], ['--hr', '-n', '16', '--ed'], ['--hr', '--ed', '--eu']):
             result = subprocess.run([str(command), *args, '--no-clipboard'], cwd=directory, capture_output=True, text=True, check=True)
             header, password = result.stdout.splitlines()
             assert not result.stderr, result.stderr
             assert header.startswith(f'Generated {len(password)} character password. Entropy: ')
             assert re.fullmatch('[A-Za-z0-9_-]+', password)
-            assert all(re.search(pattern, password) for pattern in ('[A-Z]', '[a-z]', '[0-9]'))
+            if '--hr' in args:
+                separator = '_' if '--ed' in args and '--eu' not in args else '' if '--ed' in args else '-'
+                assert re.fullmatch(rf'[a-z]{{2,8}}{separator}[a-z]{{2,8}}{separator}[a-z]{{2,8}}{separator}[0-9]{{4}}', password)
+            else:
+                assert all(re.search(pattern, password) for pattern in ('[A-Z]', '[a-z]', '[0-9]'))
             if '-n' in args:
                 maximum = int(args[args.index('-n') + 1])
                 assert len(password) <= maximum
-                if maximum <= 16:
+                if maximum <= 16 and '--hr' not in args:
                     assert len(password) == maximum
-            if '--exclude-dash' in args:
+            if '--ed' in args:
                 assert '-' not in password
-            if '--exclude-under' in args:
+            if '--eu' in args:
                 assert '_' not in password
             print('PASS installed gen-pass ' + (' '.join(args) or 'default'))
         result = subprocess.run([str(command), '--help'], cwd=directory, capture_output=True, text=True, check=True)

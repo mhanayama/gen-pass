@@ -139,6 +139,7 @@ class GeneratorTests(unittest.TestCase):
         with patch.object(socket, 'socket', side_effect=AssertionError('network forbidden')):
             self.assert_password(gp.generate())
             self.assert_password(gp.generate(32))
+            self.assertEqual(gp.generate(human_readable=True).mode, 'human-readable')
 
     def test_runtime_uses_secrets_not_random(self):
         import ast
@@ -147,6 +148,61 @@ class GeneratorTests(unittest.TestCase):
         self.assertIn('secrets', imported)
         self.assertNotIn('random', imported)
         self.assertNotIn('random', {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)})
+
+
+class HumanReadableTests(unittest.TestCase):
+    def test_default_dictionary_format_and_entropy(self):
+        english = set(gp.load_words(gp.DICTIONARY / 'english.txt'))
+        eligible = {word for word in english if len(word) <= 8}
+        for _ in range(20):
+            result = gp.generate(human_readable=True)
+            self.assertEqual(result.mode, 'human-readable')
+            self.assertRegex(result.password, r'^[a-z]{2,8}(-[a-z]{2,8}){2}-[0-9]{4}$')
+            self.assertTrue(set(result.password.split('-')[:3]) <= eligible)
+            self.assertAlmostEqual(result.entropy, 3 * math.log2(len(eligible)) + 4 * math.log2(10))
+
+    def test_length_and_exclusions_preserve_human_readable_mode(self):
+        for maximum, dash, under in itertools.product((16, 17, 20, 1000), (False, True), (False, True)):
+            with self.subTest(maximum=maximum, dash=dash, under=under):
+                result = gp.generate(maximum, dash, under, human_readable=True)
+                self.assertLessEqual(len(result.password), maximum)
+                separator = '_' if dash and not under else '' if dash else '-'
+                if separator:
+                    self.assertRegex(result.password, rf'^[a-z]{{3,8}}({separator}[a-z]{{3,8}}){{2}}{separator}[0-9]{{4}}$')
+                    self.assertIsNotNone(result.entropy)
+                else:
+                    self.assertRegex(result.password, r'^[a-z]+[0-9]{4}$')
+                    self.assertIsNone(result.entropy)
+
+    def test_filters_long_words_allows_repeats_and_leading_zero(self):
+        with patch.object(gp, 'load_words', return_value=('abcdefgh', 'abcdefghi')), patch.object(gp.secrets, 'choice', side_effect=lambda entries: entries[0]):
+            result = gp.generate(human_readable=True)
+        self.assertEqual(result.password, 'abcdefgh-abcdefgh-abcdefgh-0000')
+        self.assertAlmostEqual(result.entropy, 4 * math.log2(10))
+        with patch.object(gp, 'load_words', return_value=('abcdefghi',)):
+            with self.assertRaisesRegex(ValueError, 'no words'):
+                gp.generate(human_readable=True)
+
+    def test_bounded_entropy_and_length_weights_match_enumeration(self):
+        english = ('aa', 'bb', 'ccc')
+        triples = [words for words in itertools.product(english, repeat=3) if sum(map(len, words)) <= 7]
+        selected_lengths = []
+        for ticket in range(len(triples)):
+            # The first draw chooses a length; subsequent draws choose words.
+            with patch.object(gp, 'load_words', return_value=english), patch.object(gp.secrets, 'randbelow', side_effect=[ticket, 0, 0, 0]), patch.object(gp.secrets, 'choice', side_effect=lambda entries: entries[0]):
+                result = gp.generate(14, human_readable=True)
+            selected_lengths.append(sum(map(len, result.password.split('-')[:3])))
+            self.assertAlmostEqual(result.entropy, math.log2(len(triples)) + 4 * math.log2(10))
+        self.assertCountEqual(selected_lengths, [sum(map(len, words)) for words in triples])
+
+    def test_too_short_never_falls_back_or_copies(self):
+        for args in (['--hr', '-n', '15'], ['--hr', '--ed', '--eu', '-n', '12']):
+            out, err = io.StringIO(), io.StringIO()
+            with patch.object(gp, 'copy_to_clipboard') as copy, patch.object(gp, 'random_password', side_effect=AssertionError('unexpected fallback')), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(gp.main(args), 1)
+            self.assertEqual(out.getvalue(), '')
+            self.assertIn('too short for --hr', err.getvalue())
+            copy.assert_not_called()
 
 
 class DictionaryTests(unittest.TestCase):
@@ -189,7 +245,7 @@ class ClipboardAndCLITests(unittest.TestCase):
         return status, out.getvalue(), err.getvalue()
 
     def test_cli_success_and_clipboard_exact_match(self):
-        for args in ([], ['-n','8'], ['-n','12'], ['-n','16'], ['-n','17'], ['-n','32'], ['-n','16','--exclude-dash','--exclude-under']):
+        for args in ([], ['-n','8'], ['-n','12'], ['-n','16'], ['-n','17'], ['-n','32'], ['-n','16','--ed','--eu'], ['--hr'], ['--hr', '-n', '16', '--ed'], ['--hr', '--ed', '--eu']):
             with patch.object(gp, 'clipboard_command', return_value=['/usr/bin/pbcopy']), patch.object(gp.subprocess, 'run') as copy, patch.object(gp, 'generate', wraps=gp.generate) as generate:
                 status, stdout, stderr = self.run_main(args)
             self.assertEqual(status, 0)
@@ -232,8 +288,17 @@ class ClipboardAndCLITests(unittest.TestCase):
     def test_help_in_subprocess(self):
         result = subprocess.run([sys.executable, str(ROOT / 'gen-pass.py'), '--help'], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        for option in ('--max-length', '--exclude-dash', '--exclude-under'):
+        for option in ('--max-length', '--ed', '--eu', '--hr'):
             self.assertIn(option, result.stdout)
+
+    def test_removed_flags_and_abbreviations_are_rejected(self):
+        for option in ('--exclude-dash', '--exclude-under', '--h', '--e'):
+            with self.subTest(option=option), contextlib.redirect_stderr(io.StringIO()), patch.object(gp, 'generate') as generate, patch.object(gp, 'copy_to_clipboard') as copy:
+                with self.assertRaises(SystemExit) as exit:
+                    gp.main([option])
+                self.assertEqual(exit.exception.code, 2)
+                generate.assert_not_called()
+                copy.assert_not_called()
 
     def test_bad_dictionary_returns_clear_error(self):
         with patch.object(gp, 'load_words', side_effect=ValueError('Invalid dictionary entry')), patch.object(gp, 'copy_to_clipboard') as copy:
